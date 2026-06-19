@@ -42,3 +42,4 @@ Artisan::command('github-branches:sync', function () {
 
 Schedule::job(new SyncTicketsJob)->everyFiveMinutes();
 Schedule::job(new SyncGithubBranchesJob)->everyFiveMinutes();
+Schedule::command('horizon:snapshot')->everyFiveMinutes();
