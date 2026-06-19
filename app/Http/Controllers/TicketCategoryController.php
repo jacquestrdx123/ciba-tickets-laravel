@@ -29,7 +29,7 @@ class TicketCategoryController extends Controller
     public function update(Request $request, TicketCategory $ticketCategory): JsonResponse
     {
         $validated = $request->validate([
-            'name' => ['sometimes', 'string', 'max:255', 'unique:ticket_categories,name,' . $ticketCategory->id],
+            'name' => ['sometimes', 'string', 'max:255', 'unique:ticket_categories,name,'.$ticketCategory->id],
             'color' => ['sometimes', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
         ]);
 
@@ -52,7 +52,20 @@ class TicketCategoryController extends Controller
         ]);
 
         $ticket = Ticket::where('vendor_id', $vendorId)->firstOrFail();
-        $ticket->update(['category_id' => $validated['category_id']]);
+        $newCategoryId = $validated['category_id'];
+
+        if (
+            $ticket->category_id !== null
+            && $newCategoryId !== null
+            && (int) $ticket->category_id !== (int) $newCategoryId
+        ) {
+            return response()->json([
+                'message' => 'Ticket already has a category. Uncategorize first or assign the same category.',
+                'category_id' => $ticket->category_id,
+            ], 409);
+        }
+
+        $ticket->update(['category_id' => $newCategoryId]);
 
         return response()->json(['category_id' => $ticket->category_id]);
     }

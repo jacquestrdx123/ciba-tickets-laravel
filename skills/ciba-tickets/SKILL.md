@@ -4,10 +4,12 @@ description: >
   Query and analyse CIBA support tickets with their full comment threads.
   Use when the user asks about tickets, ticket numbers, client issues,
   support queue status, ticket comments, ticket descriptions, GitHub branches
-  linked to tickets, or needs to search/summarise/review support cases — even
-  casual requests like "show me ticket 12345", "what did the client say on
-  ticket X", or "list open tickets for Acme". Prefer the bundled MCP tools
-  when available; otherwise use the fetch script or HTTP API directly.
+  linked to tickets, ticket categorization, assigning categories to tickets,
+  or needs to search/summarise/review support cases — even casual requests
+  like "show me ticket 12345", "what did the client say on ticket X",
+  "list open tickets for Acme", or "categorize uncategorized tickets".
+  Prefer the bundled MCP tools when available; otherwise use the fetch script
+  or HTTP API directly.
 ---
 
 # CIBA Tickets Skill
@@ -52,6 +54,9 @@ Set `SKILL_DIR` to that path (relative to the repo root).
 | `get_ticket` | Full ticket + comments by `vendor_id` or `ticket_number` |
 | `search_tickets` | Search subject, client, ticket number, description, comment bodies |
 | `sync_tickets` | Queue a vendor sync and poll until complete |
+| `list_ticket_categories` | All valid categories (`id`, `name`, `color`) |
+| `list_uncategorized_tickets` | Tickets without a category; includes `description` |
+| `assign_ticket_category` | Set category on one ticket (`vendor_id` + `category_id`) |
 
 ### CLI script
 
@@ -158,12 +163,51 @@ curl -X POST "$APP_URL/api/tickets/sync" -b cookies.txt
 
 ---
 
+## Categorize tickets
+
+Use when the user asks to categorize, classify, or label uncategorized tickets.
+The **local agent** picks categories; the app stores them via the API.
+
+### Workflow
+
+1. Optionally run `sync_tickets` if data is stale
+2. Call `list_ticket_categories` — **must** pick from this list only
+3. Call `list_uncategorized_tickets` (use `limit`; process in batches if many)
+4. For each ticket, classify using `subject` and `description`; call `get_ticket` when comments would disambiguate
+5. Call `assign_ticket_category` with the chosen `category_id`
+6. Skip tickets that already have a category; do not retry after a 409 response
+7. Summarize: processed, assigned, skipped, failures
+
+### Valid categories (examples)
+
+| Category | Typical signals |
+|----------|-----------------|
+| Bug / broken functionality | Errors, crashes, wrong behaviour, regressions |
+| Feature / enhancement request | New capability, UI improvement, "can we add…" |
+| Data / reporting | Exports, reports, incorrect figures, missing fields in lists |
+| Document / file management | Uploads, downloads, templates, PDFs, letters |
+| CPD | Continuing professional development hours, certificates |
+| Tax / licence | Tax practitioner licence, SARS, regulatory compliance |
+| Membership / member profile | Member details, standing, profile updates |
+| ECMS / applications | Application workflow, ECMS forms and status |
+| Payments / billing | Invoices, payments, balances, refunds |
+| Email / notifications | Emails not sent/received, notification issues |
+
+### Rules
+
+- Never overwrite tickets that already have a category (API returns 409)
+- Only assign `category_id` values from `list_ticket_categories`
+- Prefer the most specific category; use `get_ticket` when unsure
+
+---
+
 ## Error handling
 
 | Error | Action |
 |-------|--------|
 | 401 Unauthenticated | Check `AUTH_PASSWORD` / login flow |
 | 404 ticket not found | Try `search_tickets` or `list_tickets`; ticket may not be synced |
+| 409 category conflict | Ticket already categorized — skip and continue |
 | Empty results | Run `sync_tickets` first |
 | MCP not connected | Fall back to CLI script |
 

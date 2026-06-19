@@ -107,6 +107,31 @@ class TicketClient:
         response.raise_for_status()
         return response.json()
 
+    def _api_patch(self, path: str, json_body: dict[str, Any]) -> Any:
+        client = self._http_client()
+        token = self._xsrf_token(client)
+        headers = {"Accept": "application/json", "Content-Type": "application/json"}
+        if token:
+            headers["X-XSRF-TOKEN"] = token
+        response = client.patch(path, headers=headers, json=json_body)
+        response.raise_for_status()
+        return response.json()
+
+    def list_categories(self) -> list[dict[str, Any]]:
+        data = self._api_get("/api/ticket-categories")
+        return data if isinstance(data, list) else []
+
+    def list_uncategorized_tickets(self, *, limit: int = 50) -> list[dict[str, Any]]:
+        data = self._api_get("/api/tickets?uncategorized=1")
+        tickets = data.get("tickets") or []
+        return tickets[:limit]
+
+    def assign_ticket_category(self, vendor_id: int, category_id: int) -> dict[str, Any]:
+        return self._api_patch(
+            f"/api/tickets/{vendor_id}/category",
+            {"category_id": category_id},
+        )
+
     def list_tickets(
         self,
         *,

@@ -12,13 +12,16 @@ class TicketController extends Controller
     public function __construct(private VendorTicketApi $vendorApi) {}
 
     /** Return all locally-stored tickets from MySQL. */
-    public function index()
+    public function index(Request $request)
     {
+        $uncategorizedOnly = $request->boolean('uncategorized');
+
         $tickets = Ticket::query()
+            ->when($uncategorizedOnly, fn ($query) => $query->whereNull('category_id'))
             ->with(['latestComment', 'category'])
             ->orderByDesc('last_comment_at')
             ->get()
-            ->map(fn (Ticket $ticket) => $this->formatTicketListItem($ticket));
+            ->map(fn (Ticket $ticket) => $this->formatTicketListItem($ticket, includeDescription: $uncategorizedOnly));
 
         return response()->json(['tickets' => $tickets]);
     }
@@ -86,7 +89,7 @@ class TicketController extends Controller
     }
 
     /** @return array<string, mixed> */
-    private function formatTicketListItem(Ticket $ticket): array
+    private function formatTicketListItem(Ticket $ticket, bool $includeDescription = false): array
     {
         $raw = is_array($ticket->raw) ? $ticket->raw : [];
         $branches = $ticket->github_branches ?? [];
@@ -95,7 +98,7 @@ class TicketController extends Controller
             ?? $raw['lastCommentAuthor']
             ?? null;
 
-        return [
+        $item = [
             'id' => $ticket->vendor_id,
             'vendor_id' => $ticket->vendor_id,
             'ticket_number' => $ticket->ticket_number,
@@ -114,6 +117,12 @@ class TicketController extends Controller
             'synced_at' => $ticket->synced_at?->toISOString(),
             'category' => $ticket->category ? ['id' => $ticket->category->id, 'name' => $ticket->category->name, 'color' => $ticket->category->color] : null,
         ];
+
+        if ($includeDescription) {
+            $item['description'] = $ticket->description;
+        }
+
+        return $item;
     }
 
     /** @return array<string, mixed> */

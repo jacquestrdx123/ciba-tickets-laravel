@@ -80,6 +80,37 @@ def main() -> None:
                 description="Queue a full ticket sync from the vendor API and wait for completion.",
                 inputSchema={"type": "object", "properties": {}},
             ),
+            Tool(
+                name="list_ticket_categories",
+                description="List all valid ticket categories (id, name, color). Use when categorizing tickets.",
+                inputSchema={"type": "object", "properties": {}},
+            ),
+            Tool(
+                name="list_uncategorized_tickets",
+                description="List tickets without a category. Includes description for classification.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "limit": {
+                            "type": "integer",
+                            "description": "Max tickets to return",
+                            "default": 50,
+                        },
+                    },
+                },
+            ),
+            Tool(
+                name="assign_ticket_category",
+                description="Assign a category to a ticket. Only works on uncategorized tickets (409 if already categorized).",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "vendor_id": {"type": "integer", "description": "Vendor/API ticket ID"},
+                        "category_id": {"type": "integer", "description": "Category ID from list_ticket_categories"},
+                    },
+                    "required": ["vendor_id", "category_id"],
+                },
+            ),
         ]
 
     @server.call_tool()
@@ -116,6 +147,26 @@ def main() -> None:
 
             elif name == "sync_tickets":
                 payload = client.sync_tickets()
+
+            elif name == "list_ticket_categories":
+                categories = client.list_categories()
+                payload = {"count": len(categories), "categories": categories}
+
+            elif name == "list_uncategorized_tickets":
+                tickets = client.list_uncategorized_tickets(
+                    limit=int(arguments.get("limit", 50)),
+                )
+                payload = {"count": len(tickets), "tickets": tickets}
+
+            elif name == "assign_ticket_category":
+                vendor_id = arguments.get("vendor_id")
+                category_id = arguments.get("category_id")
+                if vendor_id is None or category_id is None:
+                    raise ValueError("vendor_id and category_id are required")
+                payload = client.assign_ticket_category(
+                    vendor_id=int(vendor_id),
+                    category_id=int(category_id),
+                )
 
             else:
                 raise ValueError(f"Unknown tool: {name}")

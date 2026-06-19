@@ -10,7 +10,10 @@ All `/api/*` routes require an authenticated session (`AUTH_PASSWORD` login).
 
 ```
 GET /api/tickets
+GET /api/tickets?uncategorized=1
 ```
+
+With `uncategorized=1`, returns only tickets where `category_id` is null and includes `description` in each ticket (for agent categorization).
 
 Response:
 ```json
@@ -27,6 +30,7 @@ Response:
       "github_branches": [{"name": "feature/T-12345", "is_default": false, "sha": "abc"}],
       "last_comment_at": "2026-06-19 10:00:00",
       "synced_at": "2026-06-19T05:24:48.000000Z",
+      "category": {"id": 5, "name": "CPD", "color": "#534AB7"},
       "created_at": "...",
       "updated_at": "..."
     }
@@ -93,3 +97,38 @@ GET  /api/github/branches/sync/status
 **comments**: `ticket_id` → tickets.id, `vendor_id`, `author_name`, `body`, `comment_type`, `commented_at`
 
 Comments are ordered by `commented_at` ascending.
+
+### Ticket categories
+
+```
+GET  /api/ticket-categories
+PATCH /api/tickets/{vendor_id}/category
+```
+
+List categories:
+```json
+[
+  {"id": 1, "name": "Bug / broken functionality", "color": "#185FA5"},
+  {"id": 5, "name": "CPD", "color": "#534AB7"}
+]
+```
+
+Assign category (agent writes classification result):
+```
+PATCH /api/tickets/156/category
+Content-Type: application/json
+
+{"category_id": 5}
+```
+
+Response: `{"category_id": 5}`
+
+Returns **409** if the ticket already has a different category. Idempotent when assigning the same category. Pass `"category_id": null` to uncategorize.
+
+### MCP categorization tools
+
+| Tool | HTTP equivalent |
+|------|-----------------|
+| `list_ticket_categories` | `GET /api/ticket-categories` |
+| `list_uncategorized_tickets` | `GET /api/tickets?uncategorized=1` |
+| `assign_ticket_category` | `PATCH /api/tickets/{vendor_id}/category` |
