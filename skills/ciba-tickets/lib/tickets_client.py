@@ -18,6 +18,7 @@ import httpx
 class Config:
     base_url: str
     password: str
+    api_token: str
     db_path: Path | None
 
 
@@ -48,6 +49,7 @@ def load_config(project_root: Path | None = None) -> Config:
     ).rstrip("/")
 
     password = os.environ.get("CIBA_TICKETS_PASSWORD") or env.get("AUTH_PASSWORD") or ""
+    api_token = os.environ.get("CIBA_TICKETS_API_TOKEN") or env.get("API_TOKEN") or ""
 
     db_path: Path | None = None
     explicit_db = os.environ.get("CIBA_TICKETS_DB_PATH")
@@ -56,7 +58,7 @@ def load_config(project_root: Path | None = None) -> Config:
     elif project_root and env.get("DB_CONNECTION") == "sqlite":
         db_path = project_root / "database" / "database.sqlite"
 
-    return Config(base_url=base_url, password=password, db_path=db_path)
+    return Config(base_url=base_url, password=password, api_token=api_token, db_path=db_path)
 
 
 class TicketClient:
@@ -72,9 +74,15 @@ class TicketClient:
     def _http_client(self) -> httpx.Client:
         if self._http is None:
             self._http = httpx.Client(base_url=self.config.base_url, timeout=60.0, follow_redirects=True)
-            if self.config.password:
+            if not self.config.api_token and self.config.password:
                 self._login()
         return self._http
+
+    def _auth_headers(self) -> dict[str, str]:
+        headers: dict[str, str] = {"Accept": "application/json"}
+        if self.config.api_token:
+            headers["Authorization"] = f"Bearer {self.config.api_token}"
+        return headers
 
     def _xsrf_token(self, client: httpx.Client) -> str:
         token = client.cookies.get("XSRF-TOKEN", "")
@@ -93,26 +101,28 @@ class TicketClient:
         )
 
     def _api_get(self, path: str) -> Any:
-        response = self._http_client().get(path, headers={"Accept": "application/json"})
+        response = self._http_client().get(path, headers=self._auth_headers())
         response.raise_for_status()
         return response.json()
 
     def _api_post(self, path: str) -> Any:
         client = self._http_client()
-        token = self._xsrf_token(client)
-        headers = {"Accept": "application/json"}
-        if token:
-            headers["X-XSRF-TOKEN"] = token
+        headers = self._auth_headers()
+        if not self.config.api_token:
+            token = self._xsrf_token(client)
+            if token:
+                headers["X-XSRF-TOKEN"] = token
         response = client.post(path, headers=headers)
         response.raise_for_status()
         return response.json()
 
     def _api_patch(self, path: str, json_body: dict[str, Any]) -> Any:
         client = self._http_client()
-        token = self._xsrf_token(client)
-        headers = {"Accept": "application/json", "Content-Type": "application/json"}
-        if token:
-            headers["X-XSRF-TOKEN"] = token
+        headers = {**self._auth_headers(), "Content-Type": "application/json"}
+        if not self.config.api_token:
+            token = self._xsrf_token(client)
+            if token:
+                headers["X-XSRF-TOKEN"] = token
         response = client.patch(path, headers=headers, json=json_body)
         response.raise_for_status()
         return response.json()

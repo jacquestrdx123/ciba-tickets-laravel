@@ -2,7 +2,19 @@
 
 Base URL: `{APP_URL}` (from project `.env`)
 
-All `/api/*` routes require an authenticated session (`AUTH_PASSWORD` login).
+## Authentication
+
+**API clients (agents, curl, scripts)** — Bearer token:
+
+```
+Authorization: Bearer {API_TOKEN}
+```
+
+Set `API_TOKEN` in `.env`. No login or CSRF required for `/api/*`.
+
+**Web UI** — session login at `/login` using `AUTH_PASSWORD` (browser dashboard).
+
+Either auth method works on `/api/*` routes.
 
 ## Endpoints
 

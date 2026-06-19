@@ -31,7 +31,7 @@ class TicketCategorizationTest extends TestCase
             'category_id' => $category->id,
         ]);
 
-        $response = $this->withSession(['authenticated' => true])
+        $response = $this->withApiToken()
             ->getJson('/api/tickets?uncategorized=1');
 
         $response->assertOk()
@@ -52,7 +52,7 @@ class TicketCategorizationTest extends TestCase
             'category_id' => null,
         ]);
 
-        $response = $this->withSession(['authenticated' => true])
+        $response = $this->withApiToken()
             ->patchJson('/api/tickets/201/category', ['category_id' => $category->id]);
 
         $response->assertOk()
@@ -76,7 +76,7 @@ class TicketCategorizationTest extends TestCase
             'category_id' => $cpd->id,
         ]);
 
-        $response = $this->withSession(['authenticated' => true])
+        $response = $this->withApiToken()
             ->patchJson('/api/tickets/301/category', ['category_id' => $bug->id]);
 
         $response->assertStatus(409)
@@ -99,7 +99,7 @@ class TicketCategorizationTest extends TestCase
             'category_id' => $category->id,
         ]);
 
-        $response = $this->withSession(['authenticated' => true])
+        $response = $this->withApiToken()
             ->patchJson('/api/tickets/401/category', ['category_id' => $category->id]);
 
         $response->assertOk()
@@ -117,7 +117,7 @@ class TicketCategorizationTest extends TestCase
             'category_id' => $category->id,
         ]);
 
-        $response = $this->withSession(['authenticated' => true])
+        $response = $this->withApiToken()
             ->patchJson('/api/tickets/501/category', ['category_id' => null]);
 
         $response->assertOk()

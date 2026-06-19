@@ -55,6 +55,7 @@ return [
     'url' => env('APP_URL', 'http://localhost'),
 
     'auth_password' => env('AUTH_PASSWORD', ''),
+    'api_token' => env('API_TOKEN', ''),
     'vendor_api_token' => env('VENDOR_API_TOKEN', ''),
     'github_token' => env('GITHUB_TOKEN', ''),
     'github_owner' => env('GITHUB_OWNER', 'jacquestrdx123'),

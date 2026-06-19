@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Middleware\AuthenticateApp;
+use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -12,11 +14,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->validateCsrfTokens(except: [
+            'api/*',
+        ]);
         $middleware->web(append: [
-            \App\Http\Middleware\HandleInertiaRequests::class,
+            HandleInertiaRequests::class,
         ]);
         $middleware->alias([
-            'auth.app' => \App\Http\Middleware\AuthenticateApp::class,
+            'auth.app' => AuthenticateApp::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

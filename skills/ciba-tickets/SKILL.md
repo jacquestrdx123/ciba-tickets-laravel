@@ -81,11 +81,13 @@ The MCP server and scripts read the project `.env` when given `--project-root`.
 | Variable | Purpose |
 |----------|---------|
 | `APP_URL` | Base URL (e.g. `http://ciba-tickets-laravel.test`) |
-| `AUTH_PASSWORD` | App login password for HTTP API access |
+| `API_TOKEN` | Bearer token for `/api/*` (preferred for agents and scripts) |
+| `AUTH_PASSWORD` | Web UI login password (session auth) |
 | `DB_CONNECTION` + sqlite path | Used for direct DB reads when HTTP fails |
 
 Environment overrides (optional):
 - `CIBA_TICKETS_BASE_URL`
+- `CIBA_TICKETS_API_TOKEN`
 - `CIBA_TICKETS_PASSWORD`
 - `CIBA_TICKETS_DB_PATH` — absolute path to `database.sqlite`
 
@@ -205,7 +207,7 @@ The **local agent** picks categories; the app stores them via the API.
 
 | Error | Action |
 |-------|--------|
-| 401 Unauthenticated | Check `AUTH_PASSWORD` / login flow |
+| 401 Unauthenticated | Check `API_TOKEN` Bearer header, or `AUTH_PASSWORD` session login |
 | 404 ticket not found | Try `search_tickets` or `list_tickets`; ticket may not be synced |
 | 409 category conflict | Ticket already categorized — skip and continue |
 | Empty results | Run `sync_tickets` first |
