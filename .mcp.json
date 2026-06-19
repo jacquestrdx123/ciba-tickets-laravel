@@ -1,0 +1,10 @@
+{
+  "ciba-tickets": {
+    "command": "skills/ciba-tickets/.venv/bin/python",
+    "args": [
+      "skills/ciba-tickets/mcp/server.py",
+      "--project-root",
+      "."
+    ]
+  }
+}
