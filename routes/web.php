@@ -33,6 +33,9 @@ Route::middleware('auth.app')->group(function () {
     Route::get('/api/triage/awaiting-client', [TriageController::class, 'index']);
     Route::post('/api/triage/awaiting-client', [TriageController::class, 'store']);
     Route::delete('/api/triage/awaiting-client/{ticketId}', [TriageController::class, 'destroy']);
+    Route::get('/api/triage/priority', [TriageController::class, 'indexPriority']);
+    Route::post('/api/triage/priority', [TriageController::class, 'storePriority']);
+    Route::delete('/api/triage/priority/{ticketId}', [TriageController::class, 'destroyPriority']);
 
     // Ticket categories
     Route::get('/api/ticket-categories', [TicketCategoryController::class, 'index']);

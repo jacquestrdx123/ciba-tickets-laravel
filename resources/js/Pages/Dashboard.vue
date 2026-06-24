@@ -18,13 +18,17 @@ import {
     parkedRowFromRecord,
     hasNewCommentsSinceParked,
     matchesTicketSearch,
+    priorityRowFromRecord,
 } from '../utils/ticketTriage'
 import { downloadCsv, ticketsToCsv } from '../utils/csvExport'
 import TicketAwaitingClientAction from '../Components/TicketAwaitingClientAction.vue'
 import TicketCategoryBadge from '../Components/TicketCategoryBadge.vue'
 import GithubBranchesCell from '../Components/GithubBranchesCell.vue'
+import TicketPriorityAction from '../Components/TicketPriorityAction.vue'
+import { usePriorityTriage } from '../composables/usePriorityTriage'
 
 const triage = useAwaitingClientTriage()
+const priority = usePriorityTriage()
 const sync = useVendorTicketsFullSync()
 
 const loading = ref(true)
@@ -33,7 +37,7 @@ const categories = ref([])
 const search = ref('')
 const categoryFilter = ref('all')
 const showParked = ref(false)
-
+const showPriorityQueue = ref(false)
 async function loadTickets() {
     const res = await axios.get('/api/tickets')
     allTickets.value = res.data?.tickets ?? []
@@ -47,7 +51,7 @@ async function loadCategories() {
 async function load() {
     loading.value = true
     try {
-        await Promise.all([loadTickets(), loadCategories(), triage.load()])
+        await Promise.all([loadTickets(), loadCategories(), triage.load(), priority.load()])
     } finally {
         loading.value = false
     }
@@ -63,11 +67,28 @@ async function handleSync() {
 const localById = computed(() => new Map(allTickets.value.map((t) => [t.vendor_id, t])))
 
 const ticketsWithTriage = computed(() =>
-    allTickets.value.map((t) => withTriage(t, triage.awaitingClientById.value, 'vendor_id'))
+    allTickets.value.map((t) => withTriage(t, triage.awaitingClientById.value, 'vendor_id', priority.priorityById.value))
 )
 
 const attentionQueue = computed(() =>
     ticketsWithTriage.value.filter((t) => isTicketInAttentionQueue(t))
+)
+
+const priorityQueue = computed(() =>
+    priority.records.value.map((record) => {
+        const ticket = localById.value.get(record.ticket_id)
+        return priorityRowFromRecord(
+            record,
+            ticket
+                ? withTriage(
+                      ticket,
+                      triage.awaitingClientById.value,
+                      'vendor_id',
+                      priority.priorityById.value,
+                  )
+                : undefined,
+        )
+    }),
 )
 
 const parkedQueue = computed(() =>
@@ -80,7 +101,11 @@ const parkedWithNewActivity = computed(() =>
     parkedQueue.value.filter((row) => hasNewCommentsSinceParked(row))
 )
 
-const activeQueue = computed(() => (showParked.value ? parkedQueue.value : attentionQueue.value))
+const activeQueue = computed(() => {
+    if (showPriorityQueue.value) return priorityQueue.value
+    if (showParked.value) return parkedQueue.value
+    return attentionQueue.value
+})
 
 function matchesCategoryFilter(ticket) {
     if (categoryFilter.value === 'all') return true
@@ -132,7 +157,8 @@ const stats = computed(() => {
     const pct = total > 0 ? Math.round((needs / total) * 100) : 0
     const withBranch = allTickets.value.filter((t) => t.github_branch_exists).length
     const githubBranchPct = total > 0 ? withBranch / total : 0
-    return { total, weLast, unknown, needs, parked, parkedNew, pct, githubBranchPct }
+    const priorityCount = priorityQueue.value.length
+    return { total, weLast, unknown, needs, parked, parkedNew, pct, githubBranchPct, priorityCount }
 })
 
 const statCards = computed(() => [
@@ -185,6 +211,15 @@ const statCards = computed(() => [
         iconBg: 'bg-sky-500/10 text-sky-600 dark:bg-sky-400/15 dark:text-sky-300',
     },
     {
+        key: 'priority',
+        label: 'Priority',
+        value: stats.value.priorityCount,
+        hint: 'Shared team list · resolve first',
+        icon: 'heroicons:star',
+        tint: 'from-rose-500/15 to-rose-600/5 ring-rose-500/15 text-rose-700 dark:text-rose-300',
+        iconBg: 'bg-rose-500/10 text-rose-600 dark:bg-rose-400/15 dark:text-rose-300',
+    },
+    {
         key: 'github_branch_pct',
         label: 'Branches synced',
         value: `${Math.round(stats.value.githubBranchPct * 100)}%`,
@@ -198,7 +233,7 @@ const statCards = computed(() => [
 function exportQueueToCsv() {
     if (!filteredRows.value.length) return
     const stamp = new Date().toISOString().slice(0, 10)
-    const prefix = showParked.value ? 'tickets-awaiting-client' : 'tickets-awaiting-response'
+    const prefix = showPriorityQueue.value ? 'tickets-priority' : showParked.value ? 'tickets-awaiting-client' : 'tickets-awaiting-response'
     downloadCsv(ticketsToCsv(filteredRows.value), `${prefix}-${stamp}.csv`)
 }
 
@@ -224,6 +259,17 @@ function authorInitials(author) {
 function openTicket(vendorId) {
     router.visit(`/tickets/${vendorId}`)
 }
+
+function togglePriorityQueue() {
+    showPriorityQueue.value = !showPriorityQueue.value
+    if (showPriorityQueue.value) showParked.value = false
+}
+
+function toggleParkedQueue() {
+    showParked.value = !showParked.value
+    if (showParked.value) showPriorityQueue.value = false
+}
+
 </script>
 
 <template>
@@ -334,7 +380,7 @@ function openTicket(vendorId) {
                                 Queue
                             </div>
                             <h2 class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
-                                {{ showParked ? 'Awaiting client' : 'Awaiting response' }}
+                                {{ showPriorityQueue ? 'Priority' : showParked ? 'Awaiting client' : 'Awaiting response' }}
                             </h2>
                             <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
                                 {{ filteredRows.length }} ticket{{ filteredRows.length === 1 ? '' : 's' }} in view
@@ -347,12 +393,22 @@ function openTicket(vendorId) {
                         </div>
                         <div class="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
                             <Button
+                                :color="showPriorityQueue ? 'rose' : 'gray'"
+                                :variant="showPriorityQueue ? 'soft' : 'outline'"
+                                :icon="showPriorityQueue ? 'heroicons:queue-list' : 'heroicons:star'"
+                                size="md"
+                                class="shrink-0"
+                                @click="togglePriorityQueue"
+                            >
+                                {{ showPriorityQueue ? 'Back to attention queue' : `Show priority (${stats.priorityCount})` }}
+                            </Button>
+                            <Button
                                 :color="showParked ? 'sky' : 'gray'"
                                 :variant="showParked ? 'soft' : 'outline'"
                                 :icon="showParked ? 'heroicons:queue-list' : 'heroicons:clock'"
                                 size="md"
                                 class="shrink-0"
-                                @click="showParked = !showParked"
+                                @click="toggleParkedQueue"
                             >
                                 {{ showParked ? 'Back to attention queue' : `Show parked (${stats.parked}${stats.parkedNew > 0 ? ` · ${stats.parkedNew} new` : ''})` }}
                             </Button>
@@ -414,20 +470,22 @@ function openTicket(vendorId) {
                     <div v-else-if="!filteredRows.length" class="flex flex-col items-center justify-center py-16 text-center">
                         <div class="rounded-2xl bg-gray-50 p-4 dark:bg-gray-800/80">
                             <Icon
-                                :name="showParked ? 'heroicons:clock' : 'heroicons:check-circle'"
+                                :name="showPriorityQueue ? 'heroicons:star' : showParked ? 'heroicons:clock' : 'heroicons:check-circle'"
                                 class="h-10 w-10"
-                                :class="showParked ? 'text-sky-500' : 'text-emerald-500'"
+                                :class="showPriorityQueue ? 'text-red-500' : showParked ? 'text-sky-500' : 'text-emerald-500'"
                             />
                         </div>
                         <p class="mt-4 text-sm font-medium text-gray-900 dark:text-white">
-                            <span v-if="!stats.total && !showParked">No tickets yet — click Sync to fetch.</span>
+                            <span v-if="!stats.total && !showPriorityQueue && !showParked">No tickets yet — click Sync to fetch.</span>
+                            <span v-else-if="showPriorityQueue && !priorityQueue.length">No tickets prioritized.</span>
                             <span v-else-if="showParked && !parkedQueue.length">No tickets parked as awaiting client.</span>
-                            <span v-else-if="!showParked && !attentionQueue.length">Queue is clear — your team has the latest reply everywhere we know.</span>
+                            <span v-else-if="!showPriorityQueue && !showParked && !attentionQueue.length">Queue is clear — your team has the latest reply everywhere we know.</span>
                             <span v-else-if="categoryFilter !== 'all' && !search.trim()">No tickets in this category.</span>
                             <span v-else>No tickets match your search.</span>
                         </p>
                         <p class="mt-1 max-w-md text-sm text-gray-500 dark:text-gray-400">
-                            <span v-if="showParked">Park tickets from the attention queue when you've replied and are waiting on the client.</span>
+                            <span v-if="showPriorityQueue">Prioritize tickets when you need to surface them quickly.</span>
+                            <span v-else-if="showParked">Park tickets from the attention queue when you've replied and are waiting on the client.</span>
                             <span v-else>Run a full sync to populate tickets, then return here for triage.</span>
                         </p>
                     </div>
@@ -550,11 +608,18 @@ function openTicket(vendorId) {
                                         </div>
                                     </td>
                                     <td class="border-b border-gray-100 px-4 py-3.5 align-middle dark:border-gray-800/80" @click.stop>
-                                        <TicketAwaitingClientAction
-                                            :ticket="ticket"
-                                            :is-parked="!!ticket._triage?.isAwaitingClient"
-                                            @changed="load"
-                                        />
+                                        <div class="flex items-center gap-1">
+                                            <TicketPriorityAction
+                                                :ticket="ticket"
+                                                :is-priority="!!ticket._triage?.isPriority"
+                                                @changed="load"
+                                            />
+                                            <TicketAwaitingClientAction
+                                                :ticket="ticket"
+                                                :is-parked="!!ticket._triage?.isAwaitingClient"
+                                                @changed="load"
+                                            />
+                                        </div>
                                     </td>
                                 </tr>
                             </tbody>
@@ -565,7 +630,12 @@ function openTicket(vendorId) {
                         v-if="!loading && filteredRows.length"
                         class="mt-6 border-t border-gray-100 pt-4 text-center text-xs text-gray-400 dark:border-gray-800 dark:text-gray-500"
                     >
-                        <span v-if="showParked">
+                        <span v-if="showPriorityQueue">
+                            Prioritized tickets are shared with the team ·
+                            <span v-if="stats.priorityCount > 0">red badge = new comments since you prioritized · </span>
+                            run sync to refresh last activity timestamps
+                        </span>
+                        <span v-else-if="showParked">
                             Parked tickets are shared with the team ·
                             <span v-if="stats.parkedNew > 0">rose badge = new comments since you parked · </span>
                             run sync to refresh last activity timestamps

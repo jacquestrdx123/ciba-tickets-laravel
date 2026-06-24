@@ -21,24 +21,28 @@ const variantClasses = {
         gray: 'bg-gray-800 text-white hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600',
         sky: 'bg-sky-600 text-white hover:bg-sky-500',
         amber: 'bg-amber-600 text-white hover:bg-amber-500',
+        rose: 'bg-rose-600 text-white hover:bg-rose-500',
     },
     soft: {
         primary: 'bg-primary-500/10 text-primary-700 hover:bg-primary-500/20 dark:text-primary-300',
         gray: 'bg-gray-500/10 text-gray-700 hover:bg-gray-500/20 dark:text-gray-300',
         sky: 'bg-sky-500/10 text-sky-700 hover:bg-sky-500/20 dark:text-sky-300',
         amber: 'bg-amber-500/10 text-amber-800 hover:bg-amber-500/20 dark:text-amber-200',
+        rose: 'bg-rose-500/10 text-rose-700 hover:bg-rose-500/20 dark:text-rose-300',
     },
     outline: {
         primary: 'ring-1 ring-inset ring-primary-500/30 text-primary-700 hover:bg-primary-500/10 dark:text-primary-300',
         gray: 'ring-1 ring-inset ring-gray-300 text-gray-700 hover:bg-gray-50 dark:ring-gray-700 dark:text-gray-300 dark:hover:bg-gray-800',
         sky: 'ring-1 ring-inset ring-sky-500/30 text-sky-700 hover:bg-sky-500/10 dark:text-sky-300',
         amber: 'ring-1 ring-inset ring-amber-500/30 text-amber-800 hover:bg-amber-500/10 dark:text-amber-200',
+        rose: 'ring-1 ring-inset ring-rose-500/30 text-rose-700 hover:bg-rose-500/10 dark:text-rose-300',
     },
     ghost: {
         primary: 'text-primary-600 hover:bg-primary-500/10 dark:text-primary-400',
         gray: 'text-gray-600 hover:bg-gray-500/10 dark:text-gray-400',
         sky: 'text-sky-600 hover:bg-sky-500/10 dark:text-sky-400',
         amber: 'text-amber-700 hover:bg-amber-500/10 dark:text-amber-300',
+        rose: 'text-rose-700 hover:bg-rose-500/10 dark:text-rose-300',
     },
 }
 

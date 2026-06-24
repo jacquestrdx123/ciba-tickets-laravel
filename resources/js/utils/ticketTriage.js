@@ -37,16 +37,17 @@ export function matchesTicketSearch(ticket, query) {
     )
 }
 
-export function withTriage(ticket, awaitingClientById, idKey = 'vendor_id') {
+export function withTriage(ticket, awaitingClientById, idKey = 'vendor_id', priorityById = null) {
     const triageRecord = awaitingClientById?.get(ticket[idKey])
+    const priorityRecord = priorityById?.get(ticket[idKey])
     return {
         ...ticket,
-        _triage: triageRecord
-            ? {
-                isAwaitingClient: true,
-                record: triageRecord,
-              }
-            : { isAwaitingClient: false, record: null },
+        _triage: {
+            isAwaitingClient: !!triageRecord,
+            isPriority: !!priorityRecord,
+            record: triageRecord ?? null,
+            priorityRecord: priorityRecord ?? null,
+        },
     }
 }
 
@@ -64,3 +65,20 @@ export function parkedRowFromRecord(record, ticket) {
         },
     }
 }
+
+export function priorityRowFromRecord(record, ticket) {
+    return {
+        ...ticket,
+        vendor_id: record.ticket_id,
+        ticket_number: record.ticket_number ?? ticket?.ticket_number,
+        prioritized_at: record.prioritized_at,
+        priority_note: record.priority_note,
+        _triage: {
+            ...(ticket?._triage ?? { isAwaitingClient: false, record: null }),
+            isPriority: true,
+            priorityRecord: record,
+        },
+    }
+}
+
+
