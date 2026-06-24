@@ -15,9 +15,11 @@ class TicketController extends Controller
     public function index(Request $request)
     {
         $uncategorizedOnly = $request->boolean('uncategorized');
+        $customerClosedOnly = $request->boolean('closed_on_customer_side');
 
         $tickets = Ticket::query()
             ->when($uncategorizedOnly, fn ($query) => $query->whereNull('category_id'))
+            ->when($customerClosedOnly, fn ($query) => $query->where('closed_on_customer_side', true))
             ->with(['latestComment', 'category'])
             ->orderByDesc('last_comment_at')
             ->get()
@@ -105,6 +107,8 @@ class TicketController extends Controller
             'subject' => $ticket->subject,
             'summary' => $ticket->subject,
             'status' => $ticket->status,
+            'closed_on_customer_side' => $ticket->closed_on_customer_side,
+            'closed_on_customer_side_at' => $ticket->closed_on_customer_side_at?->toISOString(),
             'client_name' => $ticket->client_name,
             'priority' => $raw['priority'] ?? '',
             'updated_at' => $raw['updated_at'] ?? $raw['updatedAt'] ?? $ticket->synced_at?->toDateTimeString(),
@@ -141,6 +145,8 @@ class TicketController extends Controller
             'ticket_number' => $ticket->ticket_number,
             'subject' => $ticket->subject,
             'status' => $ticket->status,
+            'closed_on_customer_side' => $ticket->closed_on_customer_side,
+            'closed_on_customer_side_at' => $ticket->closed_on_customer_side_at?->toISOString(),
             'client_name' => $ticket->client_name,
             'priority' => $raw['priority'] ?? '',
             'created_at' => $raw['created_at'] ?? $ticket->created_at?->toDateTimeString(),

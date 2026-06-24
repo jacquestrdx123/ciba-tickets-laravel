@@ -7,7 +7,7 @@ function escapeCsv(val) {
 }
 
 export function ticketsToCsv(tickets) {
-    const headers = ['ID', 'Ticket #', 'Subject', 'Category', 'Client', 'Status', 'Last Comment At']
+    const headers = ['ID', 'Ticket #', 'Subject', 'Category', 'Client', 'Status', 'Closed on customer side', 'Last Comment At']
     const rows = tickets.map((t) => [
         t.id ?? '',
         t.ticket_number ?? '',
@@ -15,6 +15,7 @@ export function ticketsToCsv(tickets) {
         t.category?.name ?? '',
         t.client_name ?? '',
         t.status ?? '',
+        t.closed_on_customer_side ? (t.closed_on_customer_side_at ?? 'Yes') : 'No',
         t.last_comment_at ?? '',
     ])
     return [headers, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\n')

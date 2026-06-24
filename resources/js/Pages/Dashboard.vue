@@ -19,6 +19,7 @@ import {
     hasNewCommentsSinceParked,
     matchesTicketSearch,
     priorityRowFromRecord,
+    shouldShowInPriorityQueue,
 } from '../utils/ticketTriage'
 import { downloadCsv, ticketsToCsv } from '../utils/csvExport'
 import TicketAwaitingClientAction from '../Components/TicketAwaitingClientAction.vue'
@@ -38,6 +39,7 @@ const search = ref('')
 const categoryFilter = ref('all')
 const showParked = ref(false)
 const showPriorityQueue = ref(false)
+const showCustomerClosedQueue = ref(false)
 async function loadTickets() {
     const res = await axios.get('/api/tickets')
     allTickets.value = res.data?.tickets ?? []
@@ -75,7 +77,9 @@ const attentionQueue = computed(() =>
 )
 
 const priorityQueue = computed(() =>
-    priority.records.value.map((record) => {
+    priority.records.value
+        .filter((record) => shouldShowInPriorityQueue(record, localById.value.get(record.ticket_id)))
+        .map((record) => {
         const ticket = localById.value.get(record.ticket_id)
         return priorityRowFromRecord(
             record,
@@ -91,6 +95,10 @@ const priorityQueue = computed(() =>
     }),
 )
 
+const customerClosedQueue = computed(() =>
+    allTickets.value.filter((t) => t.closed_on_customer_side),
+)
+
 const parkedQueue = computed(() =>
     triage.records.value
         .filter((record) => shouldShowInParkedQueue(record, localById.value.get(record.ticket_id)))
@@ -102,6 +110,7 @@ const parkedWithNewActivity = computed(() =>
 )
 
 const activeQueue = computed(() => {
+    if (showCustomerClosedQueue.value) return customerClosedQueue.value
     if (showPriorityQueue.value) return priorityQueue.value
     if (showParked.value) return parkedQueue.value
     return attentionQueue.value
@@ -158,7 +167,8 @@ const stats = computed(() => {
     const withBranch = allTickets.value.filter((t) => t.github_branch_exists).length
     const githubBranchPct = total > 0 ? withBranch / total : 0
     const priorityCount = priorityQueue.value.length
-    return { total, weLast, unknown, needs, parked, parkedNew, pct, githubBranchPct, priorityCount }
+    const customerClosedCount = customerClosedQueue.value.length
+    return { total, weLast, unknown, needs, parked, parkedNew, pct, githubBranchPct, priorityCount, customerClosedCount }
 })
 
 const statCards = computed(() => [
@@ -220,6 +230,15 @@ const statCards = computed(() => [
         iconBg: 'bg-rose-500/10 text-rose-600 dark:bg-rose-400/15 dark:text-rose-300',
     },
     {
+        key: 'customer_closed',
+        label: 'Closed on customer side',
+        value: stats.value.customerClosedCount,
+        hint: 'Missing from vendor list after sync',
+        icon: 'heroicons:archive-box-x-mark',
+        tint: 'from-gray-500/15 to-gray-600/5 ring-gray-500/15 text-gray-700 dark:text-gray-300',
+        iconBg: 'bg-gray-500/10 text-gray-600 dark:bg-gray-400/15 dark:text-gray-300',
+    },
+    {
         key: 'github_branch_pct',
         label: 'Branches synced',
         value: `${Math.round(stats.value.githubBranchPct * 100)}%`,
@@ -233,7 +252,13 @@ const statCards = computed(() => [
 function exportQueueToCsv() {
     if (!filteredRows.value.length) return
     const stamp = new Date().toISOString().slice(0, 10)
-    const prefix = showPriorityQueue.value ? 'tickets-priority' : showParked.value ? 'tickets-awaiting-client' : 'tickets-awaiting-response'
+    const prefix = showCustomerClosedQueue.value
+        ? 'tickets-closed-customer-side'
+        : showPriorityQueue.value
+          ? 'tickets-priority'
+          : showParked.value
+            ? 'tickets-awaiting-client'
+            : 'tickets-awaiting-response'
     downloadCsv(ticketsToCsv(filteredRows.value), `${prefix}-${stamp}.csv`)
 }
 
@@ -262,12 +287,26 @@ function openTicket(vendorId) {
 
 function togglePriorityQueue() {
     showPriorityQueue.value = !showPriorityQueue.value
-    if (showPriorityQueue.value) showParked.value = false
+    if (showPriorityQueue.value) {
+        showParked.value = false
+        showCustomerClosedQueue.value = false
+    }
 }
 
 function toggleParkedQueue() {
     showParked.value = !showParked.value
-    if (showParked.value) showPriorityQueue.value = false
+    if (showParked.value) {
+        showPriorityQueue.value = false
+        showCustomerClosedQueue.value = false
+    }
+}
+
+function toggleCustomerClosedQueue() {
+    showCustomerClosedQueue.value = !showCustomerClosedQueue.value
+    if (showCustomerClosedQueue.value) {
+        showParked.value = false
+        showPriorityQueue.value = false
+    }
 }
 
 </script>
@@ -380,7 +419,15 @@ function toggleParkedQueue() {
                                 Queue
                             </div>
                             <h2 class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
-                                {{ showPriorityQueue ? 'Priority' : showParked ? 'Awaiting client' : 'Awaiting response' }}
+                                {{
+                                    showCustomerClosedQueue
+                                        ? 'Closed on customer side'
+                                        : showPriorityQueue
+                                          ? 'Priority'
+                                          : showParked
+                                            ? 'Awaiting client'
+                                            : 'Awaiting response'
+                                }}
                             </h2>
                             <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
                                 {{ filteredRows.length }} ticket{{ filteredRows.length === 1 ? '' : 's' }} in view
@@ -392,6 +439,20 @@ function toggleParkedQueue() {
                             </p>
                         </div>
                         <div class="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
+                            <Button
+                                :color="showCustomerClosedQueue ? 'gray' : 'gray'"
+                                :variant="showCustomerClosedQueue ? 'soft' : 'outline'"
+                                :icon="showCustomerClosedQueue ? 'heroicons:queue-list' : 'heroicons:archive-box-x-mark'"
+                                size="md"
+                                class="shrink-0"
+                                @click="toggleCustomerClosedQueue"
+                            >
+                                {{
+                                    showCustomerClosedQueue
+                                        ? 'Back to attention queue'
+                                        : `Show closed on customer side (${stats.customerClosedCount})`
+                                }}
+                            </Button>
                             <Button
                                 :color="showPriorityQueue ? 'rose' : 'gray'"
                                 :variant="showPriorityQueue ? 'soft' : 'outline'"
@@ -470,21 +531,39 @@ function toggleParkedQueue() {
                     <div v-else-if="!filteredRows.length" class="flex flex-col items-center justify-center py-16 text-center">
                         <div class="rounded-2xl bg-gray-50 p-4 dark:bg-gray-800/80">
                             <Icon
-                                :name="showPriorityQueue ? 'heroicons:star' : showParked ? 'heroicons:clock' : 'heroicons:check-circle'"
+                                :name="
+                                    showCustomerClosedQueue
+                                        ? 'heroicons:archive-box-x-mark'
+                                        : showPriorityQueue
+                                          ? 'heroicons:star'
+                                          : showParked
+                                            ? 'heroicons:clock'
+                                            : 'heroicons:check-circle'
+                                "
                                 class="h-10 w-10"
-                                :class="showPriorityQueue ? 'text-red-500' : showParked ? 'text-sky-500' : 'text-emerald-500'"
+                                :class="
+                                    showCustomerClosedQueue
+                                        ? 'text-gray-500'
+                                        : showPriorityQueue
+                                          ? 'text-red-500'
+                                          : showParked
+                                            ? 'text-sky-500'
+                                            : 'text-emerald-500'
+                                "
                             />
                         </div>
                         <p class="mt-4 text-sm font-medium text-gray-900 dark:text-white">
-                            <span v-if="!stats.total && !showPriorityQueue && !showParked">No tickets yet — click Sync to fetch.</span>
+                            <span v-if="!stats.total && !showPriorityQueue && !showParked && !showCustomerClosedQueue">No tickets yet — click Sync to fetch.</span>
+                            <span v-else-if="showCustomerClosedQueue && !customerClosedQueue.length">No tickets closed on the customer side.</span>
                             <span v-else-if="showPriorityQueue && !priorityQueue.length">No tickets prioritized.</span>
                             <span v-else-if="showParked && !parkedQueue.length">No tickets parked as awaiting client.</span>
-                            <span v-else-if="!showPriorityQueue && !showParked && !attentionQueue.length">Queue is clear — your team has the latest reply everywhere we know.</span>
+                            <span v-else-if="!showPriorityQueue && !showParked && !showCustomerClosedQueue && !attentionQueue.length">Queue is clear — your team has the latest reply everywhere we know.</span>
                             <span v-else-if="categoryFilter !== 'all' && !search.trim()">No tickets in this category.</span>
                             <span v-else>No tickets match your search.</span>
                         </p>
                         <p class="mt-1 max-w-md text-sm text-gray-500 dark:text-gray-400">
-                            <span v-if="showPriorityQueue">Prioritize tickets when you need to surface them quickly.</span>
+                            <span v-if="showCustomerClosedQueue">Tickets no longer returned by the vendor list API — closed on their side.</span>
+                            <span v-else-if="showPriorityQueue">Prioritize tickets when you need to surface them quickly.</span>
                             <span v-else-if="showParked">Park tickets from the attention queue when you've replied and are waiting on the client.</span>
                             <span v-else>Run a full sync to populate tickets, then return here for triage.</span>
                         </p>
@@ -524,6 +603,14 @@ function toggleParkedQueue() {
                                                     class="h-4 w-4 text-gray-300 opacity-0 transition group-hover/link:opacity-100 dark:text-gray-600"
                                                 />
                                             </span>
+                                            <Badge
+                                                v-if="ticket.closed_on_customer_side"
+                                                color="gray"
+                                                size="xs"
+                                                class="w-fit font-semibold"
+                                            >
+                                                Closed on customer side
+                                            </Badge>
                                             <Badge
                                                 v-if="showParked && hasNewCommentsSinceParked(ticket)"
                                                 color="rose"
@@ -608,7 +695,7 @@ function toggleParkedQueue() {
                                         </div>
                                     </td>
                                     <td class="border-b border-gray-100 px-4 py-3.5 align-middle dark:border-gray-800/80" @click.stop>
-                                        <div class="flex items-center gap-1">
+                                        <div v-if="!showCustomerClosedQueue" class="flex items-center gap-1">
                                             <TicketPriorityAction
                                                 :ticket="ticket"
                                                 :is-priority="!!ticket._triage?.isPriority"
@@ -620,6 +707,7 @@ function toggleParkedQueue() {
                                                 @changed="load"
                                             />
                                         </div>
+                                        <span v-else class="text-xs text-gray-400 dark:text-gray-500">—</span>
                                     </td>
                                 </tr>
                             </tbody>
@@ -630,7 +718,10 @@ function toggleParkedQueue() {
                         v-if="!loading && filteredRows.length"
                         class="mt-6 border-t border-gray-100 pt-4 text-center text-xs text-gray-400 dark:border-gray-800 dark:text-gray-500"
                     >
-                        <span v-if="showPriorityQueue">
+                        <span v-if="showCustomerClosedQueue">
+                            These tickets disappeared from the vendor list after sync · flag clears if they reappear
+                        </span>
+                        <span v-else-if="showPriorityQueue">
                             Prioritized tickets are shared with the team ·
                             <span v-if="stats.priorityCount > 0">red badge = new comments since you prioritized · </span>
                             run sync to refresh last activity timestamps

@@ -91,6 +91,9 @@ function statusBadgeColor(status) {
                                 <span class="rounded-md bg-gray-950/[0.04] px-2 py-0.5 font-mono text-sm font-semibold text-primary-600 tabular-nums ring-1 ring-inset ring-gray-950/[0.06] dark:bg-white/[0.06] dark:text-primary-400 dark:ring-white/10">
                                     {{ ticket.ticket_number }}
                                 </span>
+                                <Badge v-if="ticket.closed_on_customer_side" color="gray" class="font-semibold">
+                                    Closed on customer side
+                                </Badge>
                                 <Badge v-if="ticket.status" :color="statusBadgeColor(ticket.status)" class="capitalize">
                                     {{ ticket.status }}
                                 </Badge>
@@ -105,6 +108,10 @@ function statusBadgeColor(status) {
                                 <span v-if="ticket.client_name">
                                     Client:
                                     <span class="text-gray-800 dark:text-gray-200">{{ ticket.client_name }}</span>
+                                </span>
+                                <span v-if="ticket.closed_on_customer_side_at">
+                                    Closed on customer side:
+                                    {{ ticket.closed_on_customer_side_at }}
                                 </span>
                                 <span v-if="ticket.created_at">Created: {{ ticket.created_at }}</span>
                                 <span v-if="ticket.updated_at">Updated: {{ ticket.updated_at }}</span>

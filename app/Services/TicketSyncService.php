@@ -43,7 +43,39 @@ class TicketSyncService
                 : [];
         } while ($query !== []);
 
+        $this->reconcileMissingFromVendorList($vendorIds, $now);
+
         return $vendorIds;
+    }
+
+    /**
+     * Flag tickets absent from the vendor list as closed on the customer side.
+     *
+     * @param  array<int, int>  $seenVendorIds
+     */
+    public function reconcileMissingFromVendorList(array $seenVendorIds, Carbon $now): int
+    {
+        if ($seenVendorIds === []) {
+            return 0;
+        }
+
+        $newlyClosed = Ticket::query()
+            ->whereNotIn('vendor_id', $seenVendorIds)
+            ->where('closed_on_customer_side', false)
+            ->update([
+                'closed_on_customer_side' => true,
+                'closed_on_customer_side_at' => $now,
+            ]);
+
+        Ticket::query()
+            ->whereIn('vendor_id', $seenVendorIds)
+            ->where('closed_on_customer_side', true)
+            ->update([
+                'closed_on_customer_side' => false,
+                'closed_on_customer_side_at' => null,
+            ]);
+
+        return $newlyClosed;
     }
 
     public function syncDetail(int $vendorId): void

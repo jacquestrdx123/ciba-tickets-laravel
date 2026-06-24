@@ -64,10 +64,11 @@ class SyncTicketsJob implements ShouldQueue, ShouldBeUnique
         }
 
         self::setStatus('completed', [
-            'synced'            => Ticket::count(),
-            'synced_at'         => now()->toISOString(),
-            'details_total'     => $total,
-            'details_failed'    => $failed,
+            'synced'                => Ticket::count(),
+            'synced_at'             => now()->toISOString(),
+            'details_total'         => $total,
+            'details_failed'        => $failed,
+            'customer_closed_count' => Ticket::where('closed_on_customer_side', true)->count(),
         ]);
 
         SyncGithubBranchesJob::dispatch();

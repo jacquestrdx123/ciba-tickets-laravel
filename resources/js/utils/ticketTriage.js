@@ -1,6 +1,7 @@
 import { isTicketNeedsTeamFollowUp } from './teamLastComment'
 
 export function isTicketInAttentionQueue(ticket) {
+    if (ticket?.closed_on_customer_side) return false
     if (ticket?._triage?.isAwaitingClient) return false
     return isTicketNeedsTeamFollowUp(ticket?.last_comment_author)
 }
@@ -11,6 +12,7 @@ export function isTicketAwaitingClient(ticket) {
 
 export function shouldShowInParkedQueue(record, ticket) {
     if (!record) return false
+    if (ticket?.closed_on_customer_side) return false
     if (!ticket) return true
     return isTicketNeedsTeamFollowUp(ticket.last_comment_author)
 }
@@ -66,6 +68,12 @@ export function parkedRowFromRecord(record, ticket) {
     }
 }
 
+export function shouldShowInPriorityQueue(record, ticket) {
+    if (!record) return false
+    if (ticket?.closed_on_customer_side) return false
+    return true
+}
+
 export function priorityRowFromRecord(record, ticket) {
     return {
         ...ticket,
@@ -80,5 +88,4 @@ export function priorityRowFromRecord(record, ticket) {
         },
     }
 }
-
 

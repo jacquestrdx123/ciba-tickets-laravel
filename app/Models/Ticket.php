@@ -16,6 +16,8 @@ class Ticket extends Model
         'description',
         'client_name',
         'status',
+        'closed_on_customer_side',
+        'closed_on_customer_side_at',
         'github_branches',
         'last_comment_at',
         'raw',
@@ -27,6 +29,8 @@ class Ticket extends Model
         'github_branches' => 'array',
         'raw' => 'array',
         'synced_at' => 'datetime',
+        'closed_on_customer_side' => 'boolean',
+        'closed_on_customer_side_at' => 'datetime',
     ];
 
     public function category(): BelongsTo
