@@ -200,6 +200,15 @@ const statCards = computed(() => [
         iconBg: 'bg-gray-500/10 text-gray-600 dark:bg-gray-400/15 dark:text-gray-300',
     },
     {
+        key: 'needs',
+        label: 'Needs follow-up',
+        value: stats.value.needs,
+        hint: `${stats.value.pct}% of cache · excludes parked`,
+        icon: 'heroicons:bell-alert',
+        tint: 'from-primary-500/20 to-violet-500/10 ring-primary-500/20 text-primary-800 dark:text-primary-200',
+        iconBg: 'bg-primary-500/10 text-primary-600 dark:bg-primary-400/15 dark:text-primary-300',
+    },
+    {
         key: 'weLast',
         label: 'We replied last',
         value: stats.value.weLast,
@@ -216,15 +225,6 @@ const statCards = computed(() => [
         icon: 'heroicons:question-mark-circle',
         tint: 'from-amber-500/15 to-orange-500/5 ring-amber-500/20 text-amber-800 dark:text-amber-200',
         iconBg: 'bg-amber-500/10 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300',
-    },
-    {
-        key: 'needs',
-        label: 'Needs follow-up',
-        value: stats.value.needs,
-        hint: `${stats.value.pct}% of cache · excludes parked`,
-        icon: 'heroicons:bell-alert',
-        tint: 'from-primary-500/20 to-violet-500/10 ring-primary-500/20 text-primary-800 dark:text-primary-200',
-        iconBg: 'bg-primary-500/10 text-primary-600 dark:bg-primary-400/15 dark:text-primary-300',
     },
     {
         key: 'parked',
@@ -449,7 +449,7 @@ function toggleCustomerClosedQueue() {
                         </div>
                         <div class="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
                             <Button
-                                :color="showCustomerClosedQueue ? 'gray' : 'gray'"
+                                :color="showCustomerClosedQueue ? 'amber' : 'gray'"
                                 :variant="showCustomerClosedQueue ? 'soft' : 'outline'"
                                 :icon="showCustomerClosedQueue ? 'heroicons:queue-list' : 'heroicons:archive-box-x-mark'"
                                 size="md"
@@ -626,7 +626,7 @@ function toggleCustomerClosedQueue() {
                                                 size="xs"
                                                 class="w-fit font-semibold"
                                             >
-                                                New since parked
+                                                New comments
                                             </Badge>
                                         </div>
                                     </td>

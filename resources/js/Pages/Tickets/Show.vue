@@ -7,6 +7,14 @@ import Badge from '../../Components/Ui/Badge.vue'
 import Button from '../../Components/Ui/Button.vue'
 import Icon from '../../Components/Ui/Icon.vue'
 import GithubBranchesCell from '../../Components/GithubBranchesCell.vue'
+import TicketPriorityAction from '../../Components/TicketPriorityAction.vue'
+import TicketAwaitingClientAction from '../../Components/TicketAwaitingClientAction.vue'
+import { useAwaitingClientTriage } from '../../composables/useAwaitingClientTriage'
+import { usePriorityTriage } from '../../composables/usePriorityTriage'
+import { withTriage } from '../../utils/ticketTriage'
+
+const triage = useAwaitingClientTriage()
+const priority = usePriorityTriage()
 
 const props = defineProps({ ticketId: [String, Number] })
 
@@ -14,10 +22,28 @@ const ticket = ref(null)
 const loading = ref(true)
 const error = ref(null)
 
+async function loadTicket() {
+    const res = await axios.get(`/api/tickets/${props.ticketId}`)
+    ticket.value = res.data
+}
+
+async function load() {
+    await Promise.all([triage.load(), priority.load()])
+    if (ticket.value) {
+        ticket.value = withTriage(
+            ticket.value,
+            triage.awaitingClientById.value,
+            'vendor_id',
+            priority.priorityById.value,
+        )
+    }
+}
+
 onMounted(async () => {
+    loading.value = true
     try {
-        const res = await axios.get(`/api/tickets/${props.ticketId}`)
-        ticket.value = res.data
+        await loadTicket()
+        await load()
     } catch (e) {
         error.value = e?.response?.data?.message ?? e.message ?? 'Failed to load ticket'
     } finally {
@@ -100,6 +126,18 @@ function statusBadgeColor(status) {
                                 <Badge v-if="ticket.priority" :color="priorityBadgeColor(ticket.priority)" class="capitalize">
                                     {{ ticket.priority }}
                                 </Badge>
+                                <div class="flex items-center gap-1">
+                                    <TicketPriorityAction
+                                        :ticket="ticket"
+                                        :is-priority="!!ticket._triage?.isPriority"
+                                        @changed="load"
+                                    />
+                                    <TicketAwaitingClientAction
+                                        :ticket="ticket"
+                                        :is-parked="!!ticket._triage?.isAwaitingClient"
+                                        @changed="load"
+                                    />
+                                </div>
                             </div>
                             <h1 class="text-balance text-2xl font-bold tracking-tight text-gray-950 dark:text-white sm:text-3xl">
                                 {{ ticket.subject }}
