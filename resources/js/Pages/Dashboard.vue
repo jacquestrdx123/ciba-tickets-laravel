@@ -182,6 +182,24 @@ const statCards = computed(() => [
         iconBg: 'bg-slate-500/10 text-slate-600 dark:bg-slate-400/15 dark:text-slate-300',
     },
     {
+        key: 'open',
+        label: 'Open tickets',
+        value: stats.value.total - stats.value.customerClosedCount,
+        hint: 'Indexed tickets that are not closed on customer side',
+        icon: 'heroicons:arrow-path-rounded-square',
+        tint: 'from-emerald-500/15 to-emerald-600/5 ring-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+        iconBg: 'bg-emerald-500/10 text-emerald-600 dark:bg-emerald-400/15 dark:text-emerald-300',
+    },
+    {
+        key: 'customer_closed',
+        label: 'Closed on customer side',
+        value: stats.value.customerClosedCount,
+        hint: 'Missing from vendor list after sync',
+        icon: 'heroicons:archive-box-x-mark',
+        tint: 'from-gray-500/15 to-gray-600/5 ring-gray-500/15 text-gray-700 dark:text-gray-300',
+        iconBg: 'bg-gray-500/10 text-gray-600 dark:bg-gray-400/15 dark:text-gray-300',
+    },
+    {
         key: 'weLast',
         label: 'We replied last',
         value: stats.value.weLast,
@@ -228,15 +246,6 @@ const statCards = computed(() => [
         icon: 'heroicons:star',
         tint: 'from-rose-500/15 to-rose-600/5 ring-rose-500/15 text-rose-700 dark:text-rose-300',
         iconBg: 'bg-rose-500/10 text-rose-600 dark:bg-rose-400/15 dark:text-rose-300',
-    },
-    {
-        key: 'customer_closed',
-        label: 'Closed on customer side',
-        value: stats.value.customerClosedCount,
-        hint: 'Missing from vendor list after sync',
-        icon: 'heroicons:archive-box-x-mark',
-        tint: 'from-gray-500/15 to-gray-600/5 ring-gray-500/15 text-gray-700 dark:text-gray-300',
-        iconBg: 'bg-gray-500/10 text-gray-600 dark:bg-gray-400/15 dark:text-gray-300',
     },
     {
         key: 'github_branch_pct',
@@ -450,7 +459,7 @@ function toggleCustomerClosedQueue() {
                                 {{
                                     showCustomerClosedQueue
                                         ? 'Back to attention queue'
-                                        : `Show closed on customer side (${stats.customerClosedCount})`
+                                        : `Show Closed (${stats.customerClosedCount})`
                                 }}
                             </Button>
                             <Button
@@ -461,7 +470,7 @@ function toggleCustomerClosedQueue() {
                                 class="shrink-0"
                                 @click="togglePriorityQueue"
                             >
-                                {{ showPriorityQueue ? 'Back to attention queue' : `Show priority (${stats.priorityCount})` }}
+                                {{ showPriorityQueue ? 'Back to attention queue' : `Show Priority (${stats.priorityCount})` }}
                             </Button>
                             <Button
                                 :color="showParked ? 'sky' : 'gray'"
@@ -471,7 +480,7 @@ function toggleCustomerClosedQueue() {
                                 class="shrink-0"
                                 @click="toggleParkedQueue"
                             >
-                                {{ showParked ? 'Back to attention queue' : `Show parked (${stats.parked}${stats.parkedNew > 0 ? ` · ${stats.parkedNew} new` : ''})` }}
+                                {{ showParked ? 'Back to attention queue' : `Show Parked (${stats.parked}${stats.parkedNew > 0 ? ` · ${stats.parkedNew} new` : ''})` }}
                             </Button>
                             <div class="relative min-w-[11rem] shrink-0 sm:max-w-[14rem]">
                                 <Icon
